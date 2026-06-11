@@ -5,6 +5,9 @@ from bs4 import BeautifulSoup
 BASE_URL = "https://www.lesannoncesducommerce.fr"
 SITEMAP_URL = f"{BASE_URL}/sitemap-ads-1.xml"
 
+# Départements de la région Auvergne-Rhône-Alpes
+AUVERGNE_RHONE_ALPES_DEPTS = {"01", "03", "07", "15", "26", "38", "42", "43", "63", "69", "73", "74"}
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -21,9 +24,18 @@ def get_listing_urls(sitemap_url: str = SITEMAP_URL, limit: int = 10) -> list[st
     soup = BeautifulSoup(resp.text, "lxml-xml")
     urls = [loc.text.strip() for loc in soup.find_all("loc")]
 
-    # Garder uniquement les annonces fonds-de-commerce
-    urls = [u for u in urls if "fonds-de-commerce" in u]
+    # Garder uniquement les annonces fonds-de-commerce en Auvergne-Rhône-Alpes
+    urls = [u for u in urls if "fonds-de-commerce" in u and _is_auvergne_rhone_alpes(u)]
     return urls[:limit]
+
+
+def _is_auvergne_rhone_alpes(url: str) -> bool:
+    # URL pattern: annonce,fonds-de-commerce,{69-rhone},{ville},...
+    parts = url.rstrip("/").split(",")
+    if len(parts) >= 3:
+        dept_code = parts[2].split("-")[0]
+        return dept_code in AUVERGNE_RHONE_ALPES_DEPTS
+    return False
 
 
 def fetch_listing(url: str) -> BeautifulSoup | None:
