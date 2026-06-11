@@ -44,6 +44,11 @@ Le site expose un sitemap structuré :
 
 Le scraper filtre sur `fonds-de-commerce` et lit les URLs depuis `sitemap-ads-1.xml` par défaut.
 
+**Filtres actifs** :
+- Type : `fonds-de-commerce` (présence dans l'URL)
+- Région : **Auvergne-Rhône-Alpes** — filtrage par codes département (`01`, `03`, `07`, `15`, `26`, `38`, `42`, `43`, `63`, `69`, `73`, `74`) extrait du segment `{dept}` de l'URL (ex: `69-rhone`)
+- Le filtre UI "Auvergne-Rhône-Alpes" du site est une couche de présentation ; les URLs sitemaps restent organisées par département, pas par région.
+
 ## Champs extraits par annonce
 
 | Champ | Sélecteur HTML |
