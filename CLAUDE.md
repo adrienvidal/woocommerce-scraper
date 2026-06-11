@@ -31,9 +31,10 @@ requirements.txt
 
 ```bash
 source .venv/bin/activate
-python main.py --limit 10          # scrape 10 annonces
-python main.py --limit 5 --output ./exports
+python main.py --limit 10
 ```
+
+L'export Excel est généré dans `exports/annonces_YYYYMMDD_HHMMSS.xlsx`.
 
 ## Source des URLs
 
