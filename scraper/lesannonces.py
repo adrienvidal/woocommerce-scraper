@@ -1,24 +1,71 @@
 import re
+import time
+import requests
 from bs4 import BeautifulSoup
+
+BASE_URL = "https://www.lesannoncesducommerce.fr"
+SITEMAP_URL = f"{BASE_URL}/sitemap-ads-1.xml"
+
+AUVERGNE_RHONE_ALPES_DEPTS = {"01", "03", "07", "15", "26", "38", "42", "43", "63", "69", "73", "74"}
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+}
+
+
+def get_listing_urls(limit: int = 10) -> list[str]:
+    resp = requests.get(SITEMAP_URL, headers=HEADERS, timeout=10)
+    resp.raise_for_status()
+
+    soup = BeautifulSoup(resp.text, "lxml-xml")
+    urls = [loc.text.strip() for loc in soup.find_all("loc")]
+    urls = [u for u in urls if "fonds-de-commerce" in u and _is_auvergne_rhone_alpes(u)]
+    return urls[:limit]
+
+
+def _is_auvergne_rhone_alpes(url: str) -> bool:
+    # URL pattern: annonce,fonds-de-commerce,{69-rhone},{ville},...
+    parts = url.rstrip("/").split(",")
+    if len(parts) >= 3:
+        dept_code = parts[2].split("-")[0]
+        return dept_code in AUVERGNE_RHONE_ALPES_DEPTS
+    return False
+
+
+def fetch_listing(url: str) -> BeautifulSoup | None:
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        resp.raise_for_status()
+        return BeautifulSoup(resp.text, "lxml")
+    except requests.RequestException as e:
+        print(f"  ✗ Erreur fetch {url}: {e}")
+        return None
 
 
 def parse_listing(soup: BeautifulSoup, url: str) -> dict:
     return {
+        "source": "lesannonces",
         "url": url,
         "id_interne": _extract_id(url),
-        "titre": _extract_title(soup),
         "reference": _extract_reference(soup),
+        "titre": _extract_title(soup),
         "prix": _extract_price(soup),
+        "ca": "",
+        "effectif": "",
+        "secteurs_activite": "",
         "description": _extract_description(soup),
-        "date_publication": _extract_date(soup),
         "localisation": _extract_location(url),
         "activite": _extract_activity(url),
+        "date_publication": _extract_date(soup),
         "photos": _extract_photos(soup),
     }
 
 
 def _extract_id(url: str) -> str:
-    # URL pattern: ...,...,550272,...
     parts = url.rstrip("/").split(",")
     for part in reversed(parts):
         if part.isdigit():
@@ -48,9 +95,7 @@ def _extract_price(soup: BeautifulSoup) -> str:
 
 def _extract_description(soup: BeautifulSoup) -> str:
     p = soup.find("p", class_=re.compile(r"text.*p-lg"))
-    if p:
-        return p.get_text(separator=" ", strip=True)
-    return ""
+    return p.get_text(separator=" ", strip=True) if p else ""
 
 
 def _extract_date(soup: BeautifulSoup) -> str:
@@ -70,12 +115,9 @@ def _extract_location(url: str) -> str:
 
 
 def _extract_activity(url: str) -> str:
-    # URL pattern: ...,vente-bar-brasserie-restaurant-paris-1er-75001,...
     parts = url.rstrip("/").split(",")
     if len(parts) >= 5:
-        # Enlever la partie localisation à la fin du slug
         slug = parts[4]
-        # Retirer le code postal/ville en fin de slug
         slug = re.sub(r"-\d{5}$", "", slug)
         slug = re.sub(r"-[a-z]+-\d+.*$", "", slug)
         return slug.replace("-", " ").replace("vente ", "").title().strip()
@@ -89,3 +131,21 @@ def _extract_photos(soup: BeautifulSoup) -> list[str]:
         if img and img.get("src"):
             photos.append(img["src"])
     return photos
+
+
+def scrape_all(limit: int = 10, delay: float = 1.5) -> list[dict]:
+    print("Récupération des URLs depuis le sitemap lesannoncesducommerce...")
+    urls = get_listing_urls(limit=limit)
+    print(f"  → {len(urls)} annonces trouvées\n")
+
+    results = []
+    for i, url in enumerate(urls, 1):
+        print(f"[{i}/{len(urls)}] {url.split(',')[-2]}")
+        soup = fetch_listing(url)
+        if soup:
+            data = parse_listing(soup, url)
+            results.append(data)
+            print(f"  ✓ {data.get('titre', '—')[:60]}")
+        time.sleep(delay)
+
+    return results

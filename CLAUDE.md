@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Scraper d'annonces de cession de fonds de commerce depuis [LesAnnoncesduCommerce.fr](https://www.lesannoncesducommerce.fr), avec export Excel et (plus tard) import WooCommerce via REST API.
+Scraper d'annonces de cession de fonds de commerce depuis deux sources :
+- [LesAnnoncesduCommerce.fr](https://www.lesannoncesducommerce.fr)
+- [Transentreprise.com](https://www.transentreprise.com)
+
+Export Excel, et (plus tard) import WooCommerce via REST API.
 
 **Contexte** : MVP de démo client. Priorité à la simplicité sur la robustesse.
 
@@ -18,50 +22,62 @@ Scraper d'annonces de cession de fonds de commerce depuis [LesAnnoncesduCommerce
 ## Architecture
 
 ```
-main.py               ← point d'entrée CLI
+main.py                    ← point d'entrée CLI (flag --source)
 scraper/
-  scraper.py          ← récupère les URLs depuis le sitemap + fetch HTML
-  parser.py           ← extrait les champs depuis le HTML BeautifulSoup
-  exporter.py         ← génère le fichier Excel
+  lesannonces.py           ← sitemap + fetch + parse LesAnnoncesduCommerce
+  transentreprise.py       ← sitemap + fetch + parse Transentreprise
+  exporter.py              ← génère le fichier Excel
 requirements.txt
-.env.example          ← variables WooCommerce (non branché pour l'instant)
+.env.example               ← variables WooCommerce (non branché pour l'instant)
 ```
 
 ## Lancer le scraper
 
 ```bash
 source .venv/bin/activate
-python main.py --limit 10
+
+# Une seule source
+python main.py --source lesannonces --limit 10
+python main.py --source transentreprise --limit 10
+
+# Les deux sources dans un seul Excel
+python main.py --source all --limit 20
 ```
 
-L'export Excel est généré dans `exports/annonces_YYYYMMDD_HHMMSS.xlsx`.
+L'export Excel est généré dans `exports/annonces_{source}_YYYYMMDD_HHMMSS.xlsx`.
 
-## Source des URLs
+## Source des URLs — LesAnnoncesduCommerce
 
 Le site expose un sitemap structuré :
 - `https://www.lesannoncesducommerce.fr/sitemap-ads-1.xml` (et -2, -3, -4)
 - URLs d'annonces au format : `annonce,fonds-de-commerce,{dept},{ville},{slug},{id},offre-prix`
 
-Le scraper filtre sur `fonds-de-commerce` et lit les URLs depuis `sitemap-ads-1.xml` par défaut.
-
 **Filtres actifs** :
 - Type : `fonds-de-commerce` (présence dans l'URL)
 - Région : **Auvergne-Rhône-Alpes** — filtrage par codes département (`01`, `03`, `07`, `15`, `26`, `38`, `42`, `43`, `63`, `69`, `73`, `74`) extrait du segment `{dept}` de l'URL (ex: `69-rhone`)
-- Le filtre UI "Auvergne-Rhône-Alpes" du site est une couche de présentation ; les URLs sitemaps restent organisées par département, pas par région.
 
-## Champs extraits par annonce
+## Source des URLs — Transentreprise
 
-| Champ | Sélecteur HTML |
-|-------|----------------|
-| Titre | `h1` |
-| Référence | `span` contenant "Référence :" |
-| Prix | `div.bg-ladc-turquoise-100` avec label "Prix :" |
-| Description | `p.text.p-lg` |
-| Date publication | `div.bg-ladc-turquoise-100` avec label "Publiée le :" |
-| Localisation | Extrait de l'URL (segment index 3) |
-| Activité | Extrait de l'URL (segment index 4) |
-| Photos | `img` dans `.splide__slide` |
-| ID interne | Extrait de l'URL (premier segment numérique) |
+- Sitemap : `https://www.transentreprise.com/sitemap/offre.xml`
+- URLs au format : `/offres/fiche/{REF}/{slug}/{region}/{dept}/{territoire}`
+- Filtre : présence de `auvergne-rhone-alpes` dans l'URL
+
+## Champs extraits
+
+| Champ | LesAnnonces | Transentreprise |
+|-------|-------------|-----------------|
+| Titre | `h1` | `h1.block-title > b` |
+| Référence | `span` "Référence :" | `dl > dt/dd` |
+| Prix | `div.bg-ladc-turquoise-100` | `dl > dt/dd` |
+| C.A. | — | `dl > dt/dd` |
+| Effectif | — | `dl > dt/dd` |
+| Secteur d'activité | — | `dl > dt/dd` |
+| Description | `p.text.p-lg` | `article.text-annonce` |
+| Date publication | `div.bg-ladc-turquoise-100` | — |
+| Localisation | Extrait de l'URL | `dl > dt/dd` |
+| Activité | Extrait de l'URL | `dl > dt/dd` |
+| Photos | `img` dans `.splide__slide` | `img[src*="mode=1&w=855"]` |
+| ID interne | Extrait de l'URL | Référence |
 
 ## WooCommerce (à brancher)
 
@@ -75,7 +91,7 @@ WC_SECRET=cs_xxxxxxxxxxxx
 
 ## Scraping Skill (Bright Data)
 
-Le `/scrape` skill ([.claude/skills/scrape/SKILL.md](.claude/skills/scrape/SKILL.md)) est disponible mais non nécessaire — le site est en HTML statique sans protection anti-bot agressive.
+Le `/scrape` skill ([.claude/skills/scrape/SKILL.md](.claude/skills/scrape/SKILL.md)) est disponible mais non nécessaire — les deux sites sont en HTML statique sans protection anti-bot agressive.
 
 ```bash
 bash .claude/skills/scrape/scripts/scrape.sh "https://example.com"

@@ -1,6 +1,10 @@
 # WooCommerce Scraper
 
-Scraper d'annonces de cession de fonds de commerce depuis [LesAnnoncesduCommerce.fr](https://www.lesannoncesducommerce.fr), avec export Excel et import WooCommerce (à venir).
+Scraper d'annonces de cession de fonds de commerce en Auvergne-Rhône-Alpes, avec export Excel et import WooCommerce (à venir).
+
+**Sources** :
+- [LesAnnoncesduCommerce.fr](https://www.lesannoncesducommerce.fr)
+- [Transentreprise.com](https://www.transentreprise.com)
 
 ## Prérequis
 
@@ -17,38 +21,47 @@ python3 -m venv .venv
 
 ```bash
 source .venv/bin/activate
-python main.py --limit 10
+
+# Une seule source
+python main.py --source lesannonces --limit 10
+python main.py --source transentreprise --limit 10
+
+# Les deux sources dans un seul Excel
+python main.py --source all --limit 20
+
 deactivate
 ```
 
-Le fichier Excel est généré dans `exports/annonces_YYYYMMDD_HHMMSS.xlsx`.
+Le fichier Excel est généré dans `exports/annonces_{source}_YYYYMMDD_HHMMSS.xlsx`.
 
 ## Structure
 
 ```
-main.py               ← point d'entrée CLI
+main.py                    ← point d'entrée CLI (flag --source)
 scraper/
-  scraper.py          ← récupère les URLs depuis le sitemap + fetch HTML
-  parser.py           ← extrait les champs depuis le HTML
-  exporter.py         ← génère le fichier Excel
-exports/              ← fichiers Excel générés
+  lesannonces.py           ← sitemap + fetch + parse LesAnnoncesduCommerce
+  transentreprise.py       ← sitemap + fetch + parse Transentreprise
+  exporter.py              ← génère le fichier Excel
+exports/                   ← fichiers Excel générés
 requirements.txt
-.env.example          ← credentials WooCommerce (à configurer)
+.env.example               ← credentials WooCommerce (à configurer)
 ```
 
 ## Champs extraits
 
-| Champ | Source |
-|-------|--------|
-| Titre | `<h1>` |
-| Référence | `span` "Référence :" |
-| Prix | `div` "Prix :" |
-| Description | `p.text.p-lg` |
-| Localisation | URL |
-| Activité | URL |
-| Date publication | `div` "Publiée le :" |
-| Photos | `img` dans `.splide__slide` |
-| ID interne | URL |
+| Champ | LesAnnonces | Transentreprise |
+|-------|-------------|-----------------|
+| Titre | ✓ | ✓ |
+| Référence | ✓ | ✓ |
+| Prix | ✓ | ✓ |
+| C.A. | — | ✓ |
+| Effectif | — | ✓ |
+| Secteur d'activité | — | ✓ |
+| Description | ✓ | ✓ |
+| Date publication | ✓ | — |
+| Localisation | ✓ | ✓ |
+| Activité | ✓ | ✓ |
+| Photos | ✓ | ✓ |
 
 ## WooCommerce (à venir)
 

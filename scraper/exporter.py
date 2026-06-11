@@ -5,10 +5,14 @@ from openpyxl.styles import Font, PatternFill, Alignment
 
 
 COLUMNS = [
+    ("Source", "source"),
     ("ID Interne", "id_interne"),
     ("Référence", "reference"),
     ("Titre", "titre"),
     ("Prix", "prix"),
+    ("C.A.", "ca"),
+    ("Effectif", "effectif"),
+    ("Secteurs d'activité", "secteurs_activite"),
     ("Description", "description"),
     ("Localisation", "localisation"),
     ("Activité", "activite"),
@@ -21,7 +25,7 @@ HEADER_FILL = PatternFill("solid", fgColor="1F4E79")
 HEADER_FONT = Font(bold=True, color="FFFFFF")
 
 
-def export_to_excel(listings: list[dict], output_dir: str = ".") -> str:
+def export_to_excel(listings: list[dict], output_dir: str = ".", source: str = "") -> str:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Annonces"
@@ -42,12 +46,13 @@ def export_to_excel(listings: list[dict], output_dir: str = ".") -> str:
             ws.cell(row=row_idx, column=col_idx, value=value)
 
     # Largeurs de colonnes
-    col_widths = [12, 12, 50, 15, 60, 20, 25, 18, 60, 60]
+    col_widths = [16, 12, 14, 50, 15, 15, 10, 25, 60, 20, 25, 18, 60, 60]
     for col_idx, width in enumerate(col_widths, 1):
         ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"annonces_{timestamp}.xlsx"
+    source_part = f"_{source}" if source else ""
+    filename = f"annonces{source_part}_{timestamp}.xlsx"
     filepath = Path(output_dir) / filename
     wb.save(filepath)
     return str(filepath)
