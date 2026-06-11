@@ -79,15 +79,44 @@ Le site expose un sitemap structuré :
 | Photos | `img` dans `.splide__slide` | `img[src*="mode=1&w=855"]` |
 | ID interne | Extrait de l'URL | Référence |
 
-## WooCommerce (à brancher)
+## WooCommerce (phase 2 — après validation client)
 
-Les credentials vont dans `.env` (voir `.env.example`). Le connecteur sera dans `scraper/woo_client.py`.
+**Statut** : non branché. L'Excel est le livrable de la démo.
+
+### Prérequis côté site cible
+
+- HTTPS obligatoire (Basic Auth ne fonctionne pas en HTTP)
+- WooCommerce installé avec les permaliens activés (pas en `?p=123`)
+- Clé API générée dans **WooCommerce → Réglages → Avancé → REST API** avec permission Lecture/Écriture
+- Confirmer si les annonces sont des **produits WC standard** ou un **custom post type** (change l'API à utiliser)
+
+### Credentials
 
 ```env
 WC_URL=https://votre-site.com
 WC_KEY=ck_xxxxxxxxxxxx
 WC_SECRET=cs_xxxxxxxxxxxx
 ```
+
+### Plan d'implémentation
+
+**Étape 1 — `scraper/woo_client.py`**
+- Wrapper sur le SDK `woocommerce` (déjà dans `requirements.txt`)
+- Fonction `push_listings(listings: list[dict])`
+- Mapping des champs : `name` → titre, `regular_price` → prix nettoyé (ex: `"250 000 €"` → `"250000"`), `description` → description
+- Champs custom (CA, effectif, référence, localisation…) en `meta_data`
+- `sku` = `id_interne` pour détecter les doublons et faire un upsert
+
+**Étape 2 — flag `--push` dans `main.py`**
+```bash
+python main.py --source all --limit 20 --push
+```
+Scrape + export Excel + push WooCommerce en une commande.
+
+**Étape 3 — Photos (optionnel, deuxième passe)**
+Option retenue : upload réel via `/wp-json/wp/v2/media` (télécharge l'image, l'uploade dans la médiathèque WP, attache l'`id` au produit). Deux appels API par photo — à faire en dernier, après validation du flux texte.
+
+> Ne pas utiliser les URLs sources directement en production : si l'annonce est supprimée sur le site source, les images disparaissent.
 
 ## Scraping Skill (Bright Data)
 
