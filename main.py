@@ -1,4 +1,5 @@
 import argparse
+import time
 from pathlib import Path
 from scraper.exporter import export_to_excel
 
@@ -17,6 +18,7 @@ def main():
 
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
+    start = time.time()
     listings = []
 
     if args.source in ("lesannonces", "all"):
@@ -35,7 +37,9 @@ def main():
 
     print(f"\n{len(listings)} annonces récupérées. Export Excel...")
     filepath = export_to_excel(listings, output_dir=args.output, source=args.source)
-    print(f"✓ Fichier généré : {filepath}\n")
+    elapsed = time.time() - start
+    print(f"✓ Fichier généré : {filepath}")
+    print(f"  Temps écoulé : {elapsed:.1f}s\n")
 
 
 if __name__ == "__main__":
